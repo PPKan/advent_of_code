@@ -15,78 +15,101 @@ func absInt(n int) int {
 	return n
 }
 
+func removeElementByIndex(oriSlice []int, index int) []int {
+	slice := make([]int, len(oriSlice))
+	copy(slice, oriSlice)
+
+	if index < 0 || index >= len(slice) {
+		return slice
+	}
+
+	return append(slice[:index], slice[index+1:]...)
+}
 
 func isSafe(numbers []int) bool {
 
-	isSafe := true
-	numLen := len(numbers)
+	// edge case
+	if len(numbers) < 2 {
+		return true
+	}
 
-	for i, _ := range numbers {
+	var trend, distance int
+	const maxLevelDiff = 3
 
-		distance := numbers[i] - numbers[i+1]
+	// use the trend to validate the rest
+	for i := 0; i < len(numbers)-1; i++ {
 
-		fmt.Print(distance, " ")
+		currentNum := numbers[i]
+		nextNum := numbers[i+1]
 
-		// the original value doesn't matter
-		var isClimb bool
+		distance = nextNum - currentNum
 
-		if distance > 0 {
-			isClimb = true
-		} else if distance < 0 {
-			isClimb = false
-		} else {
-			isSafe = false
-			fmt.Println("Break for neither an inc or dec. dist:", distance, numbers)
-			return isSafe
+		// first case: distance must not be same and make sure trend must not be zero
+		if distance == 0 {
+			return false
 		}
 
-		if i != 0 {
-			prevDistance := numbers[i-1] - numbers[i]
+		if i == 0 {
+			trend = distance
+		}
 
-			if prevDistance > 0 && isClimb == false {
-				isSafe = false
-				fmt.Println("Break for changing the climb status dist:", distance, numbers)
-				return isSafe
-			} else if prevDistance < 0 && isClimb == true {
-				isSafe = false
-				fmt.Println("Break for changing the climb status dist:", distance, numbers)
-				return isSafe
+		// second case: distance must not larger than 3
+		if absInt(distance) > maxLevelDiff {
+			return false
+		}
+
+		// third case: status of the trend must not change
+		if trend*distance < 0 {
+			return false
+		}
+
+	}
+
+	return true
+}
+
+func isSafeWithoutOne(oriNumbers []int) bool {
+
+	numbers := make([]int, len(oriNumbers))
+	copy(numbers, oriNumbers)
+
+	// fmt.Println("\nThe original array is:", numbers)
+
+	if isSafe(numbers) {
+		// fmt.Println("This array is safe")
+		return true
+	} else {
+
+		for i := range numbers {
+
+			// fmt.Println("The array is unsafe, removing index:", i, "which is", numbers[i])
+			result := isSafe(removeElementByIndex(numbers, i))
+
+			if result {
+				// fmt.Println("This array is safe by removing index", i, "which is", numbers[i])
+				return true
 			}
 
 		}
 
-		// unsafe because levers differ by at least 1 and most 3
-		if absInt(distance) > 3 {
-			isSafe = false
-			fmt.Println("Break for dist > 3. Dist:", distance, numbers)
-			break
-		}
-
-		// end of the loop
-		if i == numLen-2 {
-			fmt.Println(numbers, isSafe)
-			break
-		}
+		// fmt.Println("After all, the array is still unsafe.")
+		return false
 	}
-
-	return isSafe
 }
 
-func strSliToIntSli(strSli []string) []int {
+func strSliToIntSli(strSli []string) ([]int, error) {
 
 	intSli := make([]int, len(strSli))
 
 	for i, str := range strSli {
 		int, err := strconv.Atoi(str)
 		if err != nil {
-			fmt.Println("Value type incorrect:", str)
-			fmt.Println(err)
+			return nil, err
 		}
-
 		intSli[i] = int
 	}
 
-	return intSli
+	return intSli, nil
 }
 
 func main() {
@@ -102,7 +125,7 @@ func main() {
 	scanner := bufio.NewScanner(file)
 
 	safeCount := 0
-	unsafeCount := 0
+	safeCountWo := 0
 
 	for scanner.Scan() {
 
@@ -110,16 +133,22 @@ func main() {
 
 		numbersString := strings.Fields(line)
 
-		numbers := strSliToIntSli(numbersString)
+		numbers, err := strSliToIntSli(numbersString)
+		if err != nil {
+			fmt.Println("Error found in text:", numbersString, "Error message:", err)
+			continue // skip the scan if error
+		}
 
 		if isSafe(numbers) {
 			safeCount += 1
-		} else {
-			unsafeCount += 1
+		}
+
+		if isSafeWithoutOne(numbers) {
+			safeCountWo += 1
 		}
 
 	}
 
 	fmt.Println(safeCount)
-
+	fmt.Println(safeCountWo)
 }
