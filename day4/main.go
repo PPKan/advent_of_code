@@ -18,19 +18,37 @@ const masLen = 1
 
 func masCount_v2(matrix [][]string) int {
 	count := 0
-	matrixLen := len(matrix)
+	verLen := len(matrix)
+	horLen := len(matrix[0])
 
-	for i := range matrixLen {
-		for j := range matrixLen {
+	for i := range matrix {
+		for j := range matrix[i] {
 
 			if matrix[i][j] != charA {
 				continue
 			}
 
-			if i < matrixLen-masLen && i >= masLen && j < matrixLen-masLen && j >= 0 {
+			leftWall := masLen
+			rightWall := horLen - masLen
+			upWall := masLen
+			downWall := verLen - masLen
 
-				diag1 := (matrix[i-1][j-1] == charM && matrix[i+1][j+1] == charS) ||
-					(matrix[i-1][j-1] == charM && matrix[i+1][j+1] == charS)
+			if i < downWall && i >= upWall && j >= leftWall && j < rightWall {
+
+				leftUp := matrix[i-1][j-1]
+				rightDown := matrix[i+1][j+1]
+				rightUp := matrix[i-1][j+1]
+				leftDown := matrix[i+1][j-1]
+
+				diag1 := (leftUp == charM && rightDown == charS) ||
+					(leftUp == charS && rightDown == charM)
+
+				diag2 := (rightUp == charM && leftDown == charS) ||
+					(rightUp == charS && leftDown == charM)
+
+				if diag1 && diag2 {
+					count++
+				}
 
 			}
 
@@ -43,7 +61,8 @@ func masCount_v2(matrix [][]string) int {
 func xmasCount_v2(matrix [][]string) int {
 
 	count := 0
-	matrixLen := len(matrix)
+	verLen := len(matrix)
+	horLen := len(matrix[0])
 
 	distances := [][]int{
 		{1, 0},   // left
@@ -56,8 +75,8 @@ func xmasCount_v2(matrix [][]string) int {
 		{-1, 1},  // rightdown
 	}
 
-	for i := range matrixLen {
-		for j := range matrixLen {
+	for i := range matrix {
+		for j := range matrix[i] {
 			for _, distance := range distances {
 
 				x := distance[0]
@@ -66,7 +85,7 @@ func xmasCount_v2(matrix [][]string) int {
 				endI := i + xmasLen*y
 				endJ := j + xmasLen*x
 
-				if endI >= 0 && endI < matrixLen && endJ >= 0 && endJ < matrixLen {
+				if endI >= 0 && endI < verLen && endJ >= 0 && endJ < horLen {
 					if matrix[i][j] == charX &&
 						matrix[i+1*y][j+1*x] == charM &&
 						matrix[i+2*y][j+2*x] == charA &&
