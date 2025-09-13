@@ -5,8 +5,10 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 )
+
+// define time variable
+var buildTime string
 
 // define const
 const charX = "X"
@@ -21,19 +23,13 @@ func masCount_v2(matrix [][]string) int {
 	verLen := len(matrix)
 	horLen := len(matrix[0])
 
-	for i := range matrix {
-		for j := range matrix[i] {
+	for i := 1; i < verLen-masLen; i++ {
+		for j := 1; j < horLen-masLen; j++ {
 
 			if matrix[i][j] != charA {
 				continue
 			}
 
-			leftWall := masLen
-			rightWall := horLen - masLen
-			upWall := masLen
-			downWall := verLen - masLen
-
-			if i < downWall && i >= upWall && j >= leftWall && j < rightWall {
 
 				leftUp := matrix[i-1][j-1]
 				rightDown := matrix[i+1][j+1]
@@ -50,7 +46,6 @@ func masCount_v2(matrix [][]string) int {
 					count++
 				}
 
-			}
 
 		}
 	}
@@ -130,5 +125,8 @@ func main() {
 	fmt.Println(resultPartTwo)
 
 	// any hint to hardcode build time?
-	fmt.Println("\nbuilt time:", time.Now())
+	if buildTime == "" {
+		buildTime = "Build Time not set"
+	}
+	fmt.Println("\nBuild time:", buildTime)
 }
