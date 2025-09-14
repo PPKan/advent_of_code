@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -62,65 +63,135 @@ func parseRuleParts(data string) (map[int][]int, [][]int, error) {
 	return part1, part2, nil
 }
 
+func checkUpdate(update []int, rules map[int][]int) (int, error) {
+
+	if len(update)%2 == 0 {
+		return 0, fmt.Errorf("rule length should be odd")
+	}
+
+	pass := true
+
+	for i := range update {
+		for j := range update {
+
+			if j <= i {
+				continue
+			}
+
+			if !slices.Contains(rules[update[i]], update[j]) {
+				// fmt.Println("The pass did not pass since", update[j],
+				// 	"does not inside", update[i], rules[update[i]])
+
+				return 0, nil
+			}
+		}
+
+		if !pass {
+			break
+		}
+	}
+
+	if pass {
+		// fmt.Println("The test has passed.", update[(len(update)-1)/2], "has been added.")
+		return update[(len(update)-1)/2], nil
+	}
+
+	return 0, nil
+
+}
+
 func checkUpdates(updates [][]int, rules map[int][]int) (int, error) {
 
 	result := 0
 
 	for _, update := range updates {
-
-		if len(update)%2 == 0 {
-			return 0, fmt.Errorf("rule length should be odd")
+		num, err := checkUpdate(update, rules)
+		if err != nil {
+			return 0, fmt.Errorf("error checking updates: %v", err)
 		}
-
-		pass := true
-
-		/*
-			1. The rest of the numbers should be contained in its previous values' slice
-			e.g. [1~n] should be in the slice of map[0]
-			2. so the algo should be, iterate through first numbers,
-			and check if the rest be in the firsts' slice
-		*/
-		fmt.Println("\nCheck begins with ===", update, "===")
-		for i := range update {
-			for j := range update {
-
-				if j <= i {
-					continue
-				}
-
-				if !slices.Contains(rules[update[i]], update[j]) {
-					fmt.Println("The pass did not pass since", update[j],
-						"does not inside", update[i], rules[update[i]])
-
-					pass = false
-					break
-				}
-			}
-
-			if !pass {
-				break
-			}
-		}
-
-		if pass {
-			fmt.Println("The test has passed.", update[(len(update)-1)/2], "has been added.")
-			result += update[(len(update)-1)/2]
-		}
-
+		result += num
 	}
-
-	fmt.Println("End of the check")
 
 	return result, nil
 
 }
 
-/*
-1. Use scanner
-2. Put rules into map
-3. iterate through each line, check if value in map
-4. if line all right, add middle count into result
-*/
+func HasDuplicates(slice []int) bool {
+	seen := make(map[int]bool)
+	for _, item := range slice {
+		if seen[item] {
+			return true // Duplicate found
+		}
+		seen[item] = true
+	}
+	return false // No duplicates found
+}
+
+func renewUpdates(updates [][]int, rules map[int][]int) (int, error) {
+
+	result := 0
+
+	for _, update := range updates {
+
+		var seqSlice [][]int
+
+		testNum, err := checkUpdate(update, rules)
+		if err != nil {
+			return 0, fmt.Errorf("error checking renew updates: %v", err)
+		}
+		if testNum != 0 {
+			// result += testNum
+			continue
+		}
+
+		for i := range update {
+
+			count := 0
+
+			for j := range update {
+
+				if i == j {
+					continue
+				}
+
+				if slices.Contains(rules[update[j]], update[i]) {
+					count += 1
+				}
+			}
+
+			seqSlice = append(seqSlice, []int{update[i], count})
+		}
+		
+
+		sort.Slice(seqSlice, func(i, j int) bool {
+			return seqSlice[i][1] < seqSlice[j][1]
+		})
+
+		var sortedSlice []int
+		for _, num := range seqSlice {
+			sortedSlice = append(sortedSlice, num[0])
+		}
+
+		// slice competency check: count must not duplicate
+		isDup := HasDuplicates(sortedSlice)
+		if isDup {
+			return 0, fmt.Errorf("malfunction sequence detected %v", err)
+		}
+
+		num, err := checkUpdate(sortedSlice, rules)
+		if err != nil {
+			return 0, fmt.Errorf("error checking updates: %v", err)
+		}
+
+		// fmt.Println(sortedSlice, result)
+
+		result += num
+	}
+
+	return result, nil
+
+}
+
 func main() {
 
 	// file, err := os.Open("./input")
@@ -135,13 +206,19 @@ func main() {
 		log.Fatalf("\nerror parsing rule parts %v", err)
 	}
 
-	result, err := checkUpdates(updates, rules)
+	result1, err := checkUpdates(updates, rules)
+	if err != nil {
+		log.Fatalf("\nerror checking updates %v", err)
+	}
+
+	result2, err := renewUpdates(updates, rules)
 	if err != nil {
 		log.Fatalf("\nerror checking updates %v", err)
 	}
 	// fmt.Println(rules)
 	// fmt.Println(updates)
 
-	fmt.Println(result)
+	fmt.Println("result of part1:", result1)
+	fmt.Println("result of part2:", result2)
 
 }
