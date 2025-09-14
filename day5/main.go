@@ -1,48 +1,118 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 )
 
 func strSliToIntSli(strSli []string) ([]int, error) {
 
-	intSli := []int
-	for _,str := range strSli {
+	var intSli []int
+	for _, str := range strSli {
 		num, err := strconv.Atoi(str)
 		if err != nil {
-			return []int, fmt.Errorf("Error converting string to interger: %v", err)
+			return []int{0}, fmt.Errorf("error converting string to interger: %v", err)
+		}
+		intSli = append(intSli, num)
 	}
-		intSli = append(intSli, )
 
-	}
+	return intSli, nil
 }
 
-func parseRule(line string) []int {
+func parseRuleParts(data string) (map[int][]int, [][]int, error) {
 
-	isPart1 := true
+	sections := strings.Split(data, "\n\n")
 
-	if line == "" {
-		isPart1 = false
+	part1 := make(map[int][]int)
+
+	for lines := range strings.FieldsSeq(sections[0]) {
+		strSep := strings.Split(lines, "|")
+		numSep, err := strSliToIntSli(strSep)
+		if err != nil {
+			return nil, nil, fmt.Errorf("\nerror parsing part 1 lines: %v", err)
+		}
+
+		first := numSep[0]
+		second := numSep[1]
+
+		val, ok := part1[first]
+		if ok && len(val) != 0 {
+			part1[first] = append(val, second)
+		} else {
+			part1[first] = []int{second}
+		}
 	}
 
-	ruleMap := make(map[int][]int)
+	var part2 [][]int
 
-	rule := strings.Split(line, "|")
+	for lines := range strings.FieldsSeq(sections[1]) {
+		strSep := strings.Split(lines, ",")
+		numSep, err := strSliToIntSli(strSep)
+		if err != nil {
+			return nil, nil, fmt.Errorf("\nerror parsing part 2 lines: %v", err)
+		}
 
-	if isPart1 {
-		fmt.Println(ruleMap)
+		part2 = append(part2, numSep)
 	}
 
-	return []int{1, 2}
-
+	return part1, part2, nil
 }
 
-func addRule(ruleNums []int) {
+func checkUpdates(updates [][]int, rules map[int][]int) (int, error) {
+
+	result := 0
+
+	for _, update := range updates {
+
+		if len(update)%2 == 0 {
+			return 0, fmt.Errorf("rule length should be odd")
+		}
+
+		pass := true
+
+		/*
+			1. The rest of the numbers should be contained in its previous values' slice
+			e.g. [1~n] should be in the slice of map[0]
+			2. so the algo should be, iterate through first numbers,
+			and check if the rest be in the firsts' slice
+		*/
+		fmt.Println("\nCheck begins with ===", update, "===")
+		for i := range update {
+			for j := range update {
+
+				if j <= i {
+					continue
+				}
+
+				if !slices.Contains(rules[update[i]], update[j]) {
+					fmt.Println("The pass did not pass since", update[j],
+						"does not inside", update[i], rules[update[i]])
+
+					pass = false
+					break
+				}
+			}
+
+			if !pass {
+				break
+			}
+		}
+
+		if pass {
+			fmt.Println("The test has passed.", update[(len(update)-1)/2], "has been added.")
+			result += update[(len(update)-1)/2]
+		}
+
+	}
+
+	fmt.Println("End of the check")
+
+	return result, nil
+
 }
 
 /*
@@ -54,21 +124,24 @@ func addRule(ruleNums []int) {
 func main() {
 
 	// file, err := os.Open("./input")
-	file, err := os.Open("./mini-input")
+	file, err := os.ReadFile("./input")
 	if err != nil {
-		log.Fatalf("Error opening file %v", err)
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		parseRule(line)
+		log.Fatalf("\nError reading file %v", err)
 	}
 
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
+	data := string(file)
+	rules, updates, err := parseRuleParts(data)
+	if err != nil {
+		log.Fatalf("\nerror parsing rule parts %v", err)
 	}
+
+	result, err := checkUpdates(updates, rules)
+	if err != nil {
+		log.Fatalf("\nerror checking updates %v", err)
+	}
+	// fmt.Println(rules)
+	// fmt.Println(updates)
+
+	fmt.Println(result)
+
 }
