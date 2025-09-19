@@ -72,12 +72,36 @@ func parseRuleParts(data string) (map[int]map[int]struct{}, [][]int, error) {
 	return part1, part2, nil
 }
 
+type CheckResult struct {
+	MiddleValue    int
+	IsCorrect      bool
+	OriginalUpdate []int // 只有在 IsCorrect 為 false 時才有意義
+}
+
+func NewCheckResult(middleValue int, isCorrect bool, originalUpdate []int) CheckResult {
+
+	var checkResult CheckResult
+
+	checkResult.MiddleValue = middleValue
+	checkResult.IsCorrect = isCorrect
+	if isCorrect {
+		checkResult.OriginalUpdate = nil
+	} else {
+		checkResult.OriginalUpdate = originalUpdate
+	}
+
+	return checkResult
+
+}
+
 // 3. Efficiency issue (hint: change the map[int][]int to map[int]map[int]bool or map[int]map[int]struct)
 // solved: modified data structure using map to do checking
-func checkUpdate(update []int, rules map[int]map[int]struct{}) (int, []int, error) {
+// 4. use struct to APIize the structure
+// solved: use struct and construction function to initialize the struct
+func checkUpdate(update []int, rules map[int]map[int]struct{}) (CheckResult, error) {
 
 	if len(update)%2 == 0 {
-		return 0, nil, fmt.Errorf("rule length should be odd")
+		return NewCheckResult(0, false, nil), fmt.Errorf("rule length should be odd")
 	}
 
 	for i := range update {
@@ -90,12 +114,12 @@ func checkUpdate(update []int, rules map[int]map[int]struct{}) (int, []int, erro
 			_, ok := rules[update[i]][update[j]]
 			if !ok {
 				// returning malfunctioned update
-				return 0, update, nil
+				return NewCheckResult(0, false, update), nil
 			}
 		}
 	}
 
-	return update[(len(update)-1)/2], nil, nil
+	return NewCheckResult(update[(len(update)-1)/2], true, nil), nil
 }
 
 func HasDuplicates(slice []int) bool {
@@ -151,14 +175,15 @@ func sortUpdates(update []int, rules map[int]map[int]struct{}) (int, error) {
 		return 0, fmt.Errorf("malfunction sequence detected")
 	}
 
-	num, malUpdate, err := checkUpdate(sortedSlice, rules)
+	checkResult, err := checkUpdate(sortedSlice, rules)
+
 	if err != nil {
 		return 0, fmt.Errorf("error checking updates %w", err)
 	}
-	if malUpdate != nil {
+	if checkResult.IsCorrect == false {
 		return 0, fmt.Errorf("malfunctioned update found")
 	}
-	result += num
+	result += checkResult.MiddleValue
 
 	return result, nil
 }
@@ -182,15 +207,14 @@ func main() {
 
 	for _, update := range updates {
 
-		num, malUpdate, err := checkUpdate(update, rules)
+		checkResult, err := checkUpdate(update, rules)
 		if err != nil {
 			log.Fatalf("Error checking updates %v", err)
 		}
-		if num != 0 {
-			result1 += num
-		}
-		if malUpdate != nil {
-			malNum, err := sortUpdates(malUpdate, rules)
+		if checkResult.IsCorrect {
+			result1 += checkResult.MiddleValue
+		} else {
+			malNum, err := sortUpdates(checkResult.OriginalUpdate, rules)
 			if err != nil {
 				log.Fatalf("Error sorting updates %v", err)
 			}
