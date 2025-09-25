@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -25,10 +26,10 @@ func parseMap(blockMap string) (map[Coordinate]string, Wall, Coordinate, error) 
 	sliceMap := strings.Fields(blockMap)
 	parsedMap := make(map[Coordinate]string)
 	wall := Wall{
-		left:  0,
-		right: len(sliceMap[0]),
-		up:    0,
-		down:  len(sliceMap),
+		left:  1,
+		right: len(sliceMap[0]) - 1,
+		up:    1,
+		down:  len(sliceMap) - 1,
 	}
 
 	var startingCoor Coordinate
@@ -47,12 +48,6 @@ func parseMap(blockMap string) (map[Coordinate]string, Wall, Coordinate, error) 
 			case "^":
 				startingCoor = currentCoor
 				parsedMap[currentCoor] = "up"
-			// case "v":
-			// 	parsedMap[currentCoor] = "down"
-			// case ">":
-			// 	parsedMap[currentCoor] = "right"
-			// case "<":
-			// 	parsedMap[currentCoor] = "left"
 			default:
 				return nil, Wall{}, Coordinate{}, fmt.Errorf("unrecognized node")
 			}
@@ -63,7 +58,7 @@ func parseMap(blockMap string) (map[Coordinate]string, Wall, Coordinate, error) 
 	return parsedMap, wall, startingCoor, nil
 }
 
-func findExit(dirMap map[Coordinate]string, wall Wall, startingCoor Coordinate) int {
+func findExit(dirMap map[Coordinate]string, wall Wall, startingCoor Coordinate) (int, map[Coordinate]struct{}, bool) {
 
 	currentCoor := startingCoor
 
@@ -71,15 +66,24 @@ func findExit(dirMap map[Coordinate]string, wall Wall, startingCoor Coordinate) 
 
 	count := 1
 
-
 	walkedMap := make(map[Coordinate]struct{})
 	walkedMap[startingCoor] = struct{}{}
+
+	blockMap := make(map[Coordinate][]Coordinate)
 
 	for {
 
 		nextCoor := Coordinate{currentCoor.X + direction.X, currentCoor.Y + direction.Y}
 
 		if dirMap[nextCoor] == "block" {
+			// fmt.Println(nextCoor, "is block")
+			dirs, ok := blockMap[nextCoor]
+			if ok && slices.Contains(dirs, direction) {
+				// fmt.Println(nextCoor, "hit twice. Returning.")
+				return -1, nil, true
+			} else {
+				blockMap[nextCoor] = append(dirs, direction)
+			}
 			// fmt.Println("meeting a block at next coordinate")
 			// fmt.Println("Direction", direction, "Next coordinate", nextCoor)
 			// if direction is up, turn right
@@ -107,13 +111,44 @@ func findExit(dirMap map[Coordinate]string, wall Wall, startingCoor Coordinate) 
 			count += 1
 		}
 
-		if currentCoor.Y < wall.left+1 || currentCoor.Y >= wall.right-1 ||
-			currentCoor.X < wall.up+1 || currentCoor.X >= wall.down-1 {
+		if currentCoor.Y < wall.left || currentCoor.Y >= wall.right ||
+			currentCoor.X < wall.up || currentCoor.X >= wall.down {
 			// fmt.Println("Break with", currentCoor, wall)
 			break
 		}
 	}
 
+	return count, walkedMap, false
+}
+
+func addObstacle(dirMap map[Coordinate]string, obsPosition Coordinate) map[Coordinate]string {
+	dirMap[obsPosition] = "block"
+	return dirMap
+}
+
+func returnObstacle(dirMap map[Coordinate]string, obsPosition Coordinate) map[Coordinate]string {
+	dirMap[obsPosition] = "dot"
+	return dirMap
+}
+
+func forceLoop(dirMap map[Coordinate]string, wall Wall, startingCoor Coordinate, walkedMap map[Coordinate]struct{}) int {
+
+	// remove starting coordinate from the walked map
+	delete(walkedMap, startingCoor)
+
+	count := 0
+	for coor := range walkedMap {
+
+		dirMap = addObstacle(dirMap, coor)
+
+		_, _, isLoop := findExit(dirMap, wall, startingCoor)
+		if isLoop {
+			count += 1
+		}
+
+		dirMap = returnObstacle(dirMap, coor)
+
+	}
 
 	return count
 }
@@ -131,8 +166,12 @@ func main() {
 		log.Fatalf("Error parsing map data")
 	}
 
-	result := findExit(dirMap, wall, startingCoor)
+	part1result, walkedMap, _ := findExit(dirMap, wall, startingCoor)
 
-	fmt.Println(result)
+	part2result := forceLoop(dirMap, wall, startingCoor, walkedMap)
+
+	fmt.Println("")
+	fmt.Println("Part 1 result:", part1result)
+	fmt.Println("Part 2 result:", part2result)
 
 }
