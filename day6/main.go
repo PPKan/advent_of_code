@@ -20,8 +20,43 @@ type Wall struct {
 	down  int
 }
 
-// map[1, 2]{obstacle}
-func parseMap(blockMap string) (map[Coordinate]string, Wall, Coordinate, error) {
+// make values into struct (APIize the code)
+// Arguments that will not be passing around are:
+// 1. Original data
+//
+// Arguments that will be passing around are:
+// 1. Parsed Map
+// 2. Wall Map
+// 3. Walked Map
+type GridResource struct {
+	ParsedGrid   map[Coordinate]string
+	Wall         Wall
+	StartingCoor Coordinate
+	IsWalked     bool
+	WalkedGrid   map[Coordinate]struct{}
+}
+
+func NewGridResource(parsedGrid map[Coordinate]string, wall Wall,
+	startingCoor Coordinate, isWalked bool, walkedGrid map[Coordinate]struct{}) GridResource {
+
+	var gridResource GridResource
+
+	gridResource.ParsedGrid = parsedGrid
+	gridResource.Wall = wall
+	gridResource.StartingCoor = startingCoor
+	gridResource.IsWalked = isWalked
+
+	if !isWalked {
+		gridResource.WalkedGrid = nil
+		return gridResource
+	}
+
+	gridResource.WalkedGrid = walkedGrid
+	return gridResource
+}
+
+func parseMap(blockMap string) (GridResource, error) {
+	// (map[Coordinate]string, Wall, Coordinate, error)
 
 	sliceMap := strings.Fields(blockMap)
 	parsedMap := make(map[Coordinate]string)
@@ -49,16 +84,24 @@ func parseMap(blockMap string) (map[Coordinate]string, Wall, Coordinate, error) 
 				startingCoor = currentCoor
 				parsedMap[currentCoor] = "up"
 			default:
-				return nil, Wall{}, Coordinate{}, fmt.Errorf("unrecognized node")
+				return NewGridResource(nil, Wall{}, Coordinate{}, false, nil), fmt.Errorf("unrecognized node")
+				// return nil, Wall{}, Coordinate{}, fmt.Errorf("unrecognized node")
 			}
 
 		}
 	}
 	// fmt.Println(parsedMap, startingCoor)
-	return parsedMap, wall, startingCoor, nil
+	// return parsedMap, wall, startingCoor, nil
+	return NewGridResource(parsedMap, wall, startingCoor, false, nil), nil
 }
 
-func findExit(dirMap map[Coordinate]string, wall Wall, startingCoor Coordinate) (int, map[Coordinate]struct{}, bool) {
+func findExit(gridResource GridResource) (int, map[Coordinate]struct{}, bool) {
+
+	// dirMap map[Coordinate]string, wall Wall, startingCoor Coordinate)
+
+	dirMap := gridResource.ParsedGrid
+	wall := gridResource.Wall
+	startingCoor := gridResource.StartingCoor
 
 	currentCoor := startingCoor
 
@@ -141,7 +184,7 @@ func forceLoop(dirMap map[Coordinate]string, wall Wall, startingCoor Coordinate,
 
 		dirMap = addObstacle(dirMap, coor)
 
-		_, _, isLoop := findExit(dirMap, wall, startingCoor)
+		_, _, isLoop := findExit(NewGridResource(dirMap, wall, startingCoor, false, nil))
 		if isLoop {
 			count += 1
 		}
@@ -161,12 +204,17 @@ func main() {
 
 	data := string(file)
 
-	dirMap, wall, startingCoor, err := parseMap(data)
+	parsedGridResource, err := parseMap(data)
+	// dirMap, wall, startingCoor, err := parseMap(data)
 	if err != nil {
 		log.Fatalf("Error parsing map data")
 	}
 
-	part1result, walkedMap, _ := findExit(dirMap, wall, startingCoor)
+	part1result, walkedMap, _ := findExit(parsedGridResource)
+
+	dirMap := parsedGridResource.ParsedGrid
+	wall := parsedGridResource.Wall
+	startingCoor := parsedGridResource.StartingCoor
 
 	part2result := forceLoop(dirMap, wall, startingCoor, walkedMap)
 
