@@ -36,8 +36,12 @@ type GridResource struct {
 	WalkedGrid   map[Coordinate]struct{}
 }
 
-func NewGridResource(parsedGrid map[Coordinate]string, wall Wall,
-	startingCoor Coordinate, isWalked bool, walkedGrid map[Coordinate]struct{}) GridResource {
+func NewGridResource(
+	parsedGrid map[Coordinate]string,
+	wall Wall,
+	startingCoor Coordinate,
+	isWalked bool,
+	walkedGrid map[Coordinate]struct{}) GridResource {
 
 	var gridResource GridResource
 
@@ -56,7 +60,6 @@ func NewGridResource(parsedGrid map[Coordinate]string, wall Wall,
 }
 
 func parseMap(blockMap string) (GridResource, error) {
-	// (map[Coordinate]string, Wall, Coordinate, error)
 
 	sliceMap := strings.Fields(blockMap)
 	parsedMap := make(map[Coordinate]string)
@@ -91,112 +94,114 @@ func parseMap(blockMap string) (GridResource, error) {
 		}
 	}
 	// fmt.Println(parsedMap, startingCoor)
-	// return parsedMap, wall, startingCoor, nil
 	return NewGridResource(parsedMap, wall, startingCoor, false, nil), nil
 }
 
-func findExit(gridResource GridResource) (int, map[Coordinate]struct{}, bool) {
+func (gr *GridResource) findExit() (int, bool) {
 
 	// dirMap map[Coordinate]string, wall Wall, startingCoor Coordinate)
 
-	dirMap := gridResource.ParsedGrid
-	wall := gridResource.Wall
-	startingCoor := gridResource.StartingCoor
-
-	currentCoor := startingCoor
+	currentCoor := gr.StartingCoor
 
 	direction := Coordinate{X: -1, Y: 0}
 
 	count := 1
 
-	walkedMap := make(map[Coordinate]struct{})
-	walkedMap[startingCoor] = struct{}{}
+	gr.IsWalked = true
+	gr.WalkedGrid = make(map[Coordinate]struct{})
+	gr.WalkedGrid[gr.StartingCoor] = struct{}{}
 
-	blockMap := make(map[Coordinate][]Coordinate)
+	statusMap := make(map[Coordinate][]Coordinate)
+
+	directions := []Coordinate{
+		// up
+		{X: -1, Y: 0},
+		// right
+		{X: 0, Y: 1},
+		// down
+		{X: 1, Y: 0},
+		// left
+		{X: 0, Y: -1},
+	}
 
 	for {
-
 		nextCoor := Coordinate{currentCoor.X + direction.X, currentCoor.Y + direction.Y}
 
-		if dirMap[nextCoor] == "block" {
-			// fmt.Println(nextCoor, "is block")
-			dirs, ok := blockMap[nextCoor]
-			if ok && slices.Contains(dirs, direction) {
-				// fmt.Println(nextCoor, "hit twice. Returning.")
-				return -1, nil, true
-			} else {
-				blockMap[nextCoor] = append(dirs, direction)
+		dirs, ok1 := statusMap[nextCoor]
+		if ok1 && slices.Contains(dirs, direction) {
+			// fmt.Println(nextCoor, "hit twice. Returning.")
+			return -1, true
+		} else {
+			statusMap[nextCoor] = append(dirs, direction)
+		}
+
+		if gr.ParsedGrid[nextCoor] == "block" {
+
+			for i := range directions {
+				if direction == directions[i] {
+					// fmt.Println("From", direction, "to", directions[(i+1)%4])
+					direction = directions[(i+1)%4]
+					break
+				}
 			}
-			// fmt.Println("meeting a block at next coordinate")
-			// fmt.Println("Direction", direction, "Next coordinate", nextCoor)
-			// if direction is up, turn right
-			if direction.X == -1 && direction.Y == 0 {
-				direction = Coordinate{X: 0, Y: 1}
-			} else if direction.X == 0 && direction.Y == 1 {
-				// if direction is right, turn down
-				direction = Coordinate{X: 1, Y: 0}
-			} else if direction.X == 1 && direction.Y == 0 {
-				// if direction is down, turn left
-				direction = Coordinate{X: 0, Y: -1}
-			} else if direction.X == 0 && direction.Y == -1 {
-				// if direction is left, turn up
-				direction = Coordinate{X: -1, Y: 0}
-			}
+
 			continue
 		}
 
 		// walk
 		currentCoor = nextCoor
 
-		_, ok := walkedMap[currentCoor]
-		if !ok {
-			walkedMap[currentCoor] = struct{}{}
+		_, ok2 := gr.WalkedGrid[currentCoor]
+		if !ok2 {
+			gr.WalkedGrid[currentCoor] = struct{}{}
 			count += 1
 		}
 
-		if currentCoor.Y < wall.left || currentCoor.Y >= wall.right ||
-			currentCoor.X < wall.up || currentCoor.X >= wall.down {
+		if currentCoor.Y < gr.Wall.left || currentCoor.Y >= gr.Wall.right ||
+			currentCoor.X < gr.Wall.up || currentCoor.X >= gr.Wall.down {
 			// fmt.Println("Break with", currentCoor, wall)
 			break
 		}
 	}
 
-	return count, walkedMap, false
+	return count, false
 }
 
-func addObstacle(dirMap map[Coordinate]string, obsPosition Coordinate) map[Coordinate]string {
-	dirMap[obsPosition] = "block"
-	return dirMap
+func (gr *GridResource) addObstacle(obsPosition Coordinate) {
+	gr.ParsedGrid[obsPosition] = "block"
 }
 
-func returnObstacle(dirMap map[Coordinate]string, obsPosition Coordinate) map[Coordinate]string {
-	dirMap[obsPosition] = "dot"
-	return dirMap
+func (gr *GridResource) returnObstacle(obsPosition Coordinate) {
+	gr.ParsedGrid[obsPosition] = "dot"
 }
 
-func forceLoop(dirMap map[Coordinate]string, wall Wall, startingCoor Coordinate, walkedMap map[Coordinate]struct{}) int {
+func (gr *GridResource) forceLoop() int {
+	// func forceLoop(dirMap map[Coordinate]string, wall Wall, startingCoor Coordinate, walkedMap map[Coordinate]struct{}) int {
 
 	// remove starting coordinate from the walked map
-	delete(walkedMap, startingCoor)
+	delete(gr.WalkedGrid, gr.StartingCoor)
 
 	count := 0
-	for coor := range walkedMap {
+	for coor := range gr.WalkedGrid {
 
-		dirMap = addObstacle(dirMap, coor)
+		// gr.ParsedGrid = addObstacle(gr.ParsedGrid, coor)
+		gr.addObstacle(coor)
 
-		_, _, isLoop := findExit(NewGridResource(dirMap, wall, startingCoor, false, nil))
+		simGr := NewGridResource(gr.ParsedGrid, gr.Wall, gr.StartingCoor, false, nil)
+		_, isLoop := simGr.findExit()
+
 		if isLoop {
 			count += 1
 		}
 
-		dirMap = returnObstacle(dirMap, coor)
-
+		gr.returnObstacle(coor)
 	}
 
 	return count
 }
 
 func main() {
+	fmt.Println("===Start of the script===")
 	file, err := os.ReadFile("./input")
 	if err != nil {
 		log.Fatalf("Error reading file %v", err)
@@ -210,16 +215,12 @@ func main() {
 		log.Fatalf("Error parsing map data")
 	}
 
-	part1result, walkedMap, _ := findExit(parsedGridResource)
-
-	dirMap := parsedGridResource.ParsedGrid
-	wall := parsedGridResource.Wall
-	startingCoor := parsedGridResource.StartingCoor
-
-	part2result := forceLoop(dirMap, wall, startingCoor, walkedMap)
+	part1result, _ := parsedGridResource.findExit()
+	part2result := parsedGridResource.forceLoop()
 
 	fmt.Println("")
 	fmt.Println("Part 1 result:", part1result)
 	fmt.Println("Part 2 result:", part2result)
 
+	fmt.Println("\n===End of the script===")
 }
